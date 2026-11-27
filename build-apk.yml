@@ -1,0 +1,76 @@
+name: Build APK TOTAL STREAMING
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configurar Java 17 (Android Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Validar Secrets e gerar www/config.js
+        env:
+          TS_API_URL: ${{ secrets.TS_API_URL }}
+          TS_API_KEY: ${{ secrets.TS_API_KEY }}
+        run: |
+          if [ -z "$TS_API_URL" ] || [ -z "$TS_API_KEY" ]; then
+            echo "ERRO: Cadastre os Secrets TS_API_URL e TS_API_KEY em Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          cat <<EOF > www/config.js
+          window.TS_APK_CONFIG = {
+            apiUrl: "${TS_API_URL}",
+            apiKey: "${TS_API_KEY}"
+          };
+          EOF
+
+      - name: Garantir carregamento do config.js no www/index.html
+        run: |
+          if ! grep -q 'src="config.js"' www/index.html; then
+            sed -i 's|</head>|  <script src="config.js"></script>
+</head>|' www/index.html
+          fi
+
+      - name: Instalar dependências Capacitor
+        run: npm install
+
+      - name: Gerar projeto Android e sincronizar www
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: Ajustar permissões AndroidManifest (Internet e Cleartext)
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q 'usesCleartextTraffic' "$MANIFEST"; then
+            sed -i 's|<application|<application android:usesCleartextTraffic="true"|' "$MANIFEST"
+          fi
+
+      - name: Compilar APK Debug
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Publicar APK pronto para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: TOTAL-STREAMING-V6.3-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
