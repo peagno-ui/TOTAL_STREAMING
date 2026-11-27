@@ -33,6 +33,7 @@ jobs:
             echo "ERRO: Cadastre os Secrets TS_API_URL e TS_API_KEY em Settings > Secrets and variables > Actions."
             exit 1
           fi
+          mkdir -p www
           cat <<EOF > www/config.js
           window.TS_APK_CONFIG = {
             apiUrl: "${TS_API_URL}",
@@ -42,9 +43,8 @@ jobs:
 
       - name: Garantir carregamento do config.js no www/index.html
         run: |
-          if ! grep -q 'src="config.js"' www/index.html; then
-            sed -i 's|</head>|  <script src="config.js"></script>
-</head>|' www/index.html
+          if [ -f "www/index.html" ] && ! grep -q 'src="config.js"' www/index.html; then
+            sed -i 's|</head>|  <script src="config.js"></script>\n</head>|' www/index.html
           fi
 
       - name: Instalar dependências Capacitor
@@ -68,9 +68,8 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Publicar APK pronto para download
+      - name: Publicar APK como Artifact
         uses: actions/upload-artifact@v4
         with:
           name: TOTAL-STREAMING-V6.3-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
