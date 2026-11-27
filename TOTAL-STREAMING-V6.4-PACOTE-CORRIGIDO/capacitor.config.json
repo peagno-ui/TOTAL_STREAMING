@@ -1,0 +1,9 @@
+{
+  "appId": "com.totalstreaming.v6",
+  "appName": "TOTAL STREAMING",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  }
+}
